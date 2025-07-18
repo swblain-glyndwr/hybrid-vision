@@ -1,0 +1,4 @@
+-r requirements-edge.txt
+-r requirements-cloud.txt
+pytest
+tqdm

@@ -1,0 +1,28 @@
+version: "3"
+services:
+  edge:
+    build: ./docker/edge.Dockerfile
+    container_name: edge_cpu
+    networks: [vision_net]
+    environment:
+      - MODE=edge
+    volumes:
+      - ./src:/app/src
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 8g
+  cloud:
+    build: ./docker/cloud.Dockerfile
+    container_name: cloud_gpu
+    networks: [vision_net]
+    environment:
+      - MODE=cloud
+      - CUDA_VISIBLE_DEVICES=0
+    runtime: nvidia
+    volumes:
+      - ./src:/app/src
+networks:
+  vision_net:
+    driver: bridge

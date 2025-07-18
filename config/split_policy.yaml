@@ -1,0 +1,2 @@
+queue_threshold: 10
+bandwidth_min_mbps: 20
