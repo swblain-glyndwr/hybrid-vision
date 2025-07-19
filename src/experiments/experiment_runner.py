@@ -1,4 +1,4 @@
-import argparse, subprocess, time, sys, zmq
+import argparse, subprocess, time, sys
 
 def run_dummy(frames: int):
     print(f"Running dummy experiment for {frames} frames")
