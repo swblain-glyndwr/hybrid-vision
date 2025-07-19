@@ -1,4 +1,15 @@
+# Pull everything the edge container needs (CPU wheels work everywhere)
 -r requirements-edge.txt
--r requirements-cloud.txt
-pytest
-tqdm
+
+# If you want GPU tests locally,
+# uncomment the next line – otherwise skip to keep the venv lightweight.
+# -r requirements-cloud.txt
+
+# Testing & tooling
+pytest>=8.3
+pre-commit>=3.7
+black==24.4
+isort==5.13
+jupyterlab>=4.2
+ipykernel>=6.29
+matplotlib>=3.9

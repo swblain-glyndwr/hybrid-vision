@@ -1,3 +1,28 @@
-torch==2.3.0+cu121
+# Core DL stack (CUDA 12.1 build)
+torch==2.3.*
+torchvision==0.18.*
+
+# Detection, reconstruction, Gen2Seg head
 ultralytics==8.2.0
-pyzmq
+timm>=0.9
+nflows==0.14.0
+
+# Optional: pull Gen2Seg weights from HF  (simple Python package not yet on PyPI)
+# gen2seg @ git+https://huggingface.co/anon/gen2seg@main
+# gen2seg @ git+https://github.com/UCDvision/gen2seg.git@main
+diffusers>=0.27
+transformers>=4.41
+accelerate>=0.30
+
+# Codec + utilities (same versions as edge for consistency)
+torchac==0.9.1
+bitstring==4.1.3
+msgpack==1.0.7
+pillow>=10.3
+numpy>=1.26
+pycocotools>=2.0.7
+pandas>=2.2
+tqdm>=4.66
+huggingface_hub>=0.23
+pyzmq>=25.1
+psutil>=5.9
