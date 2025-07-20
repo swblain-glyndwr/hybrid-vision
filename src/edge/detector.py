@@ -29,7 +29,7 @@ from common import codec   # local module, baseline zlib (will swap later)
 # Configuration constants                                                     #
 
 
-_MODEL_WEIGHTS = "yolov8n-seg.pt"   # this should already be in edge image
+_MODEL_WEIGHTS = "/app/weights/yolov8n-seg.pt"   # this should already be in edge image
 _INPUT_SIZE    = 640               # longest side after resize (square letterbox)
 _CONF_THRES    = 0.25
 _IOU_THRES     = 0.45
@@ -107,6 +107,7 @@ class EdgeDetector:
 
         # feature capture
         feat = self._hook.tensor
+        feat = feat.squeeze(0)
         if feat is None:
             raise RuntimeError("Feature hook did not fire.")
         # feat shape: (C,H,W)  -- keep on CPU
@@ -145,7 +146,5 @@ if __name__ == "__main__":    # only executes when `python -m edge.detector`
     out_blob = det.run(args.image)
     hdr_len = int.from_bytes(out_blob[:4], "big")
     hdr = msgpack.unpackb(out_blob[4:4+hdr_len], strict_map_key=False)
-    print(json.dumps({k: (v if isinstance(v, (int, float, str)) else str(type(v)))
-                      for k, v in hdr.items()},
-                     indent=2))
+    print(json.dumps(hdr, indent=2))
     print(f"\nTotal bytes on wire: {len(out_blob):,}")
