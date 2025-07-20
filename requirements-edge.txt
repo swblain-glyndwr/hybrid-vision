@@ -1,32 +1,22 @@
+# ---- PyTorch CPU wheels -------------------------------------------------------
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch==2.3.0+cpu
 torchvision==0.18.0+cpu
 
-ultralytics>=8.2
-opencv-python-headless       # smaller than opencv-python
+# ---- Vision stack -------------------------------------------------------------
+ultralytics==8.3.168           # YOLOv8-n-seg (latest, 2025-07-18) :contentReference[oaicite:0]{index=0}
+opencv-python-headless>=4.9
 
-# Core DL stack (CPU build)
-# torch==2.3.*
-# torchvision==0.18.*
-
-# Detection / segmentation
-ultralytics==8.2.0          # YOLOv8-n-seg
-# Tiny YOLO-Nano backbone (pulled straight from GitHub)
-#yolo-nano @ git+https://github.com/itsliupeng/YOLO-Nano.git@425cdb6
-
-# Codec & compression
+# ---- Compression & flow -------------------------------------------------------
 nflows==0.14.0
 torchac==0.9.1
 bitstring==4.1.3
 msgpack==1.0.7
 
-# Vision utils
+# ---- Utils & metrics ----------------------------------------------------------
 pillow>=10.3
 numpy>=1.26
 pycocotools>=2.0.7
 tqdm>=4.66
-
-# Comms & metrics
 pyzmq>=25.1
 psutil>=5.9
-
