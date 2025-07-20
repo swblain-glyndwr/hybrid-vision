@@ -1,19 +1,19 @@
-# ---- PyTorch CPU wheels -------------------------------------------------------
+# PyTorch CPU wheels
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch==2.3.0+cpu
 torchvision==0.18.0+cpu
 
-# ---- Vision stack -------------------------------------------------------------
-ultralytics==8.3.168           # YOLOv8-n-seg (latest, 2025-07-18) :contentReference[oaicite:0]{index=0}
+# Vision stack
+ultralytics==8.3.168           # YOLOv8-n-seg 
 opencv-python-headless>=4.9
 
-# ---- Compression & flow -------------------------------------------------------
+# Compression & flow
 nflows==0.14.0
 torchac==0.9.1
 bitstring==4.1.3
 msgpack==1.0.7
 
-# ---- Utils & metrics ----------------------------------------------------------
+# Utils & metrics
 pillow>=10.3
 numpy>=1.26
 pycocotools>=2.0.7

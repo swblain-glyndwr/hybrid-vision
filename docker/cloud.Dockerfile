@@ -12,12 +12,14 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 
-# clone Gen2Seg
+# clone Gen2Seg and add in a pythonpath that we'll define later
+# this is needed for the cloud container to find the gen2seg package
 RUN git clone --depth 1 https://github.com/UCDvision/gen2seg.git /opt/gen2seg
 ENV PYTHONPATH="/opt/gen2seg:${PYTHONPATH}"
 
 RUN apt-get update && apt-get install -y python3.11 python3-pip && rm -rf /var/lib/apt/lists/*
 RUN python3.11 -m pip install --upgrade pip
+RUN ln -s /usr/bin/python3.11 /usr/local/bin/python
 
 WORKDIR /app
 COPY requirements-cloud.txt .

@@ -1,21 +1,21 @@
-# ---- PyTorch CUDA wheels ------------------------------------------------------
+# PyTorch CUDA wheels
 --extra-index-url https://download.pytorch.org/whl/cu121
 torch==2.3.0+cu121
 torchvision==0.18.0+cu121
 
-# ---- Detection / segmentation -------------------------------------------------
+# Detection / segmentation
 ultralytics==8.3.168
 segmentation-models-pytorch~=0.3        # convenience for Gen2Seg backbone
 timm>=0.9
 nflows==0.14.0
 
-# ---- (Optional) Diffusion extras ----------------------------------------------
+# Diffusion extras
 diffusers>=0.27
 transformers>=4.41
 accelerate>=0.30
 huggingface_hub>=0.23
 
-# ---- Same utilities as edge ---------------------------------------------------
+# Same utilities as edge
 torchac==0.9.1
 bitstring==4.1.3
 msgpack==1.0.7
