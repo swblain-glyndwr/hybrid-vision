@@ -13,4 +13,5 @@ COPY requirements-edge.txt .
 RUN pip install --no-cache-dir -r requirements-edge.txt
 
 COPY src /app/src
+ENV PYTHONPATH=/app/src 
 ENTRYPOINT ["python", "-m", "src.edge.main_edge"]

@@ -11,6 +11,8 @@ services:
       - MODE=edge
     volumes:
       - ./src:/app/src
+      - ./datasets:/data:ro
+      - ./_weights:/root/.cache/ultralytics
     # Optional dev-only limits (ignored by compose up)
     deploy:
       resources:

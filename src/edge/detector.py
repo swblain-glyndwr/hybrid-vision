@@ -68,7 +68,7 @@ class EdgeDetector:
 
         # Register hook
         self._hook = _FeatureHook()
-        target_layer = self.model.model[_FEATURE_NODE]
+        target_layer = self.model.model.model[_FEATURE_NODE]
         target_layer.register_forward_hook(self._hook)
 
         # YOLO names for downstream display 
@@ -119,14 +119,13 @@ class EdgeDetector:
         # build header
         meta: Dict[str, Any] = {
             "img_path": str(img_path),
-            "shape": tuple(feat.shape),            # (C,H,W)
-            "dtype": str(feat.numpy().dtype),      # 'float32'
-            "bbox_xyxy": res.boxes.xyxy.cpu().numpy(),    # (N,4)
-            "confidence": res.boxes.conf.cpu().numpy(),   # (N,)
+            "shape": tuple(feat.shape),
+            "dtype": str(feat.numpy().dtype),
+            "bbox_xyxy": res.boxes.xyxy.cpu().tolist(),  
+            "confidence": res.boxes.conf.cpu().tolist(),  
             "infer_ms": infer_ms,
             "enc_ms": enc_ms,
         }
-
         header = msgpack.packb(meta, use_bin_type=True)
         # Prepend 4-byte big-endian header length for easy split on cloud side
         blob = len(header).to_bytes(4, "big") + header + feat_bytes
