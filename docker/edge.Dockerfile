@@ -13,11 +13,14 @@ COPY requirements-edge.txt .
 RUN pip install --no-cache-dir -r requirements-edge.txt
 
 COPY src /app/src
+COPY tc/ /app/tc/  
 
 # Download YOLO weights once at build time
 RUN mkdir -p /app/weights && \
     wget -q https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n-seg.pt \
          -O /app/weights/yolov8n-seg.pt
 
-ENV PYTHONPATH=/app/src 
-ENTRYPOINT ["python", "-m", "src.edge.main_edge"]
+ENV YOLO_CONFIG_DIR=/tmp
+
+ENV PYTHONPATH=/app/src:/app
+ENTRYPOINT ["python", "-m", "src.edge.detector"]

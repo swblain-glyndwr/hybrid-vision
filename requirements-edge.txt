@@ -2,6 +2,7 @@
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch==2.3.0+cpu
 torchvision==0.18.0+cpu
+torchmetrics>=1.4
 
 # Vision stack
 ultralytics==8.3.168           # YOLOv8-n-seg 

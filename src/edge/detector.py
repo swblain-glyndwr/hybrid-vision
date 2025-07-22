@@ -31,7 +31,7 @@ from common import codec   # local module, baseline zlib (will swap later)
 
 _MODEL_WEIGHTS = "/app/weights/yolov8n-seg.pt"   # this should already be in edge image
 _INPUT_SIZE    = 640               # longest side after resize (square letterbox)
-_CONF_THRES    = 0.25
+_CONF_THRES    = 0.001
 _IOU_THRES     = 0.45
 _FEATURE_NODE  = -3                # layer index to tap (neck)
 _DEVICE        = torch.device("cpu")
@@ -105,6 +105,9 @@ class EdgeDetector:
         )[0]
         infer_ms = (time.perf_counter() - t0) * 1e3
 
+        keep = res.boxes.conf.argsort(descending=True)[:100]   # TOP-100 rule
+        res.boxes = res.boxes[keep]
+        
         # feature capture
         feat = self._hook.tensor
         feat = feat.squeeze(0)
@@ -124,6 +127,7 @@ class EdgeDetector:
             "dtype": str(feat.numpy().dtype),
             "bbox_xyxy": res.boxes.xyxy.cpu().tolist(),  
             "confidence": res.boxes.conf.cpu().tolist(),  
+            "labels":   res.boxes.cls.cpu().tolist(),   # (N,)
             "infer_ms": infer_ms,
             "enc_ms": enc_ms,
         }

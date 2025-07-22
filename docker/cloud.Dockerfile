@@ -8,6 +8,7 @@ RUN apt-get update && \
         git \
         build-essential \
         ffmpeg \
+        wget \
         libgl1 && \
     rm -rf /var/lib/apt/lists/*
 
@@ -19,11 +20,23 @@ ENV PYTHONPATH="/opt/gen2seg:${PYTHONPATH}"
 
 RUN apt-get update && apt-get install -y python3.11 python3-pip && rm -rf /var/lib/apt/lists/*
 RUN python3.11 -m pip install --upgrade pip
-RUN ln -s /usr/bin/python3.11 /usr/local/bin/python
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 2 && \
+    ln -s /usr/bin/python3.11 /usr/local/bin/python
 
 WORKDIR /app
 COPY requirements-cloud.txt .
 RUN python3.11 -m pip install --no-cache-dir -r requirements-cloud.txt
 
 COPY src /app/src
-ENTRYPOINT ["python3.11", "-m", "src.cloud.main_cloud"]
+COPY tc/ /app/tc/  
+
+
+# Download YOLO weights once at build time
+RUN mkdir -p /app/weights && \
+    wget -q https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n-seg.pt \
+         -O /app/weights/yolov8n-seg.pt
+
+ENV YOLO_CONFIG_DIR=/tmp
+
+ENV PYTHONPATH=/app/src:/app
+ENTRYPOINT ["python3.11", "-m", "src.cloud.segmenter"]

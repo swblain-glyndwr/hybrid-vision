@@ -21,195 +21,120 @@ Author: hybrid-vision project — 2025-07-20
 
 from __future__ import annotations
 
-import argparse
-import json
-import time
+
+import argparse, csv, json, time
 from collections import defaultdict
-from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, List
 
-import numpy as np
+import torch
+from torchmetrics.detection import MeanAveragePrecision
 from tqdm import tqdm
+from pycocotools.coco import COCO
 
-# Local modules
 from edge.detector import EdgeDetector
 from cloud.segmenter import CloudSegmenter
+from tc.apply_tc import apply_profile   # your helper
 
-# uncomment when Gen2Seg head is trained
-# from torchmetrics.detection.mean_ap import MeanAveragePrecision
-# import torch
-
-
-# Traffic-control helper
-
-
-def _apply_tc(profile: str) -> None:
-    """
-    Call tc/apply_tc.py if it exists; otherwise print a warning.
-    """
-    helper = Path("tc/apply_tc.py")
-    if not helper.exists():
-        print(f"[WARN] TC helper not found → skipping shaping (profile='{profile}')")
-        return
-    import subprocess, sys
-    try:
-        subprocess.run(
-            [sys.executable, str(helper), "--profile", profile],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-    except subprocess.CalledProcessError as e:
-        print(f"[WARN] TC helper failed: {e.stderr.strip() or e}")
-    else:
-        print(f"[INFO] Applied TC profile '{profile}'")
+DATA_ROOT = Path("/data/coco")          # volume mount inside both containers
+VAL_IMGS  = DATA_ROOT / "val2017"
+ANN_FILE  = DATA_ROOT / "annotations" / "instances_val2017.json"
+# Build mapping {coco_id -> 0-79 contiguous}
+coco_cat_ids = sorted(COCO(str(ANN_FILE)).getCatIds())
+COCO_CAT_ID_TO_IDX = {cid: i for i, cid in enumerate(coco_cat_ids)}
 
 
-# Metrics utilities
+# Helper: map YOLO xyxy numpy → torchmetric dicts
+
+def yolo_to_pred(bboxes, conf, labels):
+    """Return list[dict] with 'boxes', 'scores' and 'labels' ."""
+    return [{
+        "boxes":  torch.as_tensor(bboxes,  dtype=torch.float32),
+        "scores": torch.as_tensor(conf,    dtype=torch.float32),
+        "labels": torch.as_tensor(labels,  dtype=torch.long),
+    }]
+
+def coco_gt(coco: COCO, img_id: int):
+    """Return dict for torchmetrics (boxes + labels) for one COCO image id."""
+    anns = coco.loadAnns(coco.getAnnIds(imgIds=[img_id], iscrowd=False))
+    boxes, labels = [], []
+    for a in anns:
+        x, y, w, h = a["bbox"]
+        boxes.append([x, y, x + w, y + h])
+        labels.append(COCO_CAT_ID_TO_IDX[a["category_id"]])   # remap!
+    return [{
+        "boxes":  torch.tensor(boxes,  dtype=torch.float32),
+        "labels": torch.tensor(labels, dtype=torch.long),
+    }]
 
 
-class OnlineStats:
-    """Simple Welford mean/variance + quantiles."""
-    def __init__(self) -> None:
-        self.n = 0
-        self.mean = 0.0
-        self.M2 = 0.0
-        self.values: List[float] = []
+# Main runner
 
-    def add(self, x: float) -> None:
-        self.n += 1
-        delta = x - self.mean
-        self.mean += delta / self.n
-        self.M2 += delta * (x - self.mean)
-        self.values.append(x)
+def main(args):
+    # optional traffic-control
+    if args.profile:
+        apply_profile(args.profile)
 
-    def result(self) -> Dict[str, float]:
-        if self.n == 0:
-            return {}
-        p95 = float(np.percentile(self.values, 95))
-        std = (self.M2 / (self.n - 1)) ** 0.5 if self.n > 1 else 0.0
-        return {"mean": self.mean, "p95": p95, "std": std}
-
-
-# Core experiment runner
-
-
-def run_experiment(args: argparse.Namespace) -> None:
-    dataset_root = Path(args.dataset).expanduser()
-    if not dataset_root.is_dir():
-        raise FileNotFoundError(dataset_root)
-
-    # Apply traffic-control shaping (host loopback)
-    _apply_tc(args.profile)
-
-    # Instantiate edge & cloud
-    edge = EdgeDetector()
+    # detectors
+    edge  = EdgeDetector()
     cloud = CloudSegmenter()
 
-    # mAP metric
-    # map_metric = MeanAveragePrecision().to("cpu")
+    # COCO helper & metric
+    coco   = COCO(str(ANN_FILE))
+    metric = MeanAveragePrecision(
+            iou_type="bbox",
+            iou_thresholds=[x / 100 for x in range(50, 100, 5)],   # 0.50‥0.95
+    )
+    stats  = []                     # per-frame CSV rows
 
-    # Prepare output file
-    results_path = Path(args.out)
-    results_path.parent.mkdir(parents=True, exist_ok=True)
-    fout = results_path.open("w")
+    img_files = sorted(VAL_IMGS.glob("*.jpg"))[:args.frames]
+    for img_path in tqdm(img_files, desc="frames"):
+        t_all0 = time.perf_counter()
 
-    # Iterate frames
-    lat_stats = defaultdict(OnlineStats)   # encode_ms, decode_ms, total_ms
-    size_stats = OnlineStats()
-
-    images = sorted(dataset_root.glob("*.jpg"))
-    if args.frames:
-        images = images[: args.frames]
-
-    for img_path in tqdm(images, desc="Frames"):
-        t0 = time.perf_counter()
         blob = edge.run(img_path)
-        enc_time = edge._hook.tensor is not None and edge._hook.tensor  # not used
-        # on-wire size
-        size_stats.add(len(blob))
+        out  = cloud.run(blob)
 
-        # cloud side
-        out = cloud.run(blob)
-        t_total = (time.perf_counter() - t0) * 1e3
-
-        # accumulate stats
-        lat_stats["decode_ms"].add(out["dec_ms"])
-        lat_stats["total_ms"].add(t_total)
-        lat_stats["encode_ms"].add(out["meta"]["enc_ms"])
-
-        # update mAP object
-        # preds = dict(
-        #     masks=torch.sigmoid(out["logits"]) > 0.5,
-        #     scores=torch.tensor(out["meta"]["confidence"]),
-        #     labels=torch.zeros_like(out["meta"]["confidence"], dtype=torch.long),
-        # )
-        # target = ...  # load from COCO instances JSON
-        # map_metric.update([preds], [target])
-
-        # Write per-frame JSONL
-        frame_record = {
-            "img": str(img_path),
-            "bytes": len(blob),
-            "infer_ms": out["meta"]["infer_ms"],
-            "enc_ms": out["meta"]["enc_ms"],
-            "dec_ms": out["dec_ms"],
-            "total_ms": t_total,
-            "timestamp": time.time(),
+        # collect latency & size
+        meta = out["meta"]
+        row  = {
+            "file":   img_path.name,
+            "edge_ms":  meta["infer_ms"],
+            "enc_ms":   meta["enc_ms"],
+            "blob_kB":  len(blob)/1024,
+            "cloud_ms": out["dec_ms"],
+            "total_ms": (time.perf_counter()-t_all0)*1e3,
         }
-        fout.write(json.dumps(frame_record) + "\n")
+        stats.append(row)
 
-    fout.close()
+        # accumulate mAP (bbox only for now)
+        img_id = int(img_path.stem)
+        preds  = yolo_to_pred(meta["bbox_xyxy"], meta["confidence"], meta["labels"])
+        gts    = coco_gt(coco, img_id)
+        metric.update(preds, gts)
 
-    # Print summary
-    print("\n=== Summary ===")
-    for k, stat in lat_stats.items():
-        res = stat.result()
-        print(f"{k:<10}  mean: {res['mean']:.2f} ms   p95: {res['p95']:.2f} ms")
-    size_res = size_stats.result()
-    print(f"bytes      mean: {size_res['mean']:.0f} B   p95: {size_res['p95']:.0f} B")
+    # results
+    mp = metric.compute()
+    print("\n===== summary =====")
+    print(f"mAP50-95 (bbox): {mp['map']:.3f}")
+    print(f" └─ AP50 only :  {mp['map_50']:.3f}")
+    print(f"mean total latency: {sum(r['total_ms'] for r in stats)/len(stats):.1f} ms")
+    print(f"mean blob size:     {sum(r['blob_kB']  for r in stats)/len(stats):.1f} kB")
 
-    # Final mAP
-    # map_res = map_metric.compute()
-    # print(f"mAP50-95: {map_res['map']:.3f}")
-
-    print(f"[✓] Saved per-frame results to {results_path}")
+    # CSV dump
+    if args.csv:
+        with open(args.csv, "w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=stats[0].keys())
+            w.writeheader(); w.writerows(stats)
+        print(f"saved per-frame stats → {args.csv}")
 
 
 # CLI
 
-
-def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Hybrid-Vision Experiment Runner")
-    p.add_argument(
-        "--dataset",
-        type=str,
-        default="datasets/coco/val2017",
-        help="Path to folder of .jpg frames",
-    )
-    p.add_argument(
-        "--frames",
-        type=int,
-        default=0,
-        help="Number of frames to process (0 = all)",
-    )
-    p.add_argument(
-        "--profile",
-        type=str,
-        default="none",
-        help="TC profile name (5G, 4G, 3G, none)",
-    )
-    dt = datetime.now().strftime("%Y%m%d_%H%M%S")
-    p.add_argument(
-        "--out",
-        type=str,
-        default=f"results/run_{dt}.jsonl",
-        help="Output JSONL path",
-    )
-    return p.parse_args()
-
-
 if __name__ == "__main__":
-    args = parse_args()
-    run_experiment(args)
+    p = argparse.ArgumentParser()
+    p.add_argument("--frames", type=int, default=50,
+                   help="number of COCO-val images (default 50)")
+    p.add_argument("--profile", type=str, default=None,
+                   help="TC profile name as understood by tc/apply_tc.py")
+    p.add_argument("--csv", type=Path, default=None,
+                   help="optional output CSV file")
+    main(p.parse_args())

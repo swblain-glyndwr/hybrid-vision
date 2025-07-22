@@ -12,6 +12,7 @@ services:
       - ./src:/app/src
       - ./datasets:/data:ro
       - ./_weights:/root/.cache/ultralytics
+      - ./results:/results 
     # Optional dev-only limits (ignored by compose up)
     deploy:
       resources:
@@ -31,6 +32,9 @@ services:
     runtime: nvidia
     volumes:
       - ./src:/app/src
+      - ./datasets:/data:ro
+      - ./_weights:/root/.cache/ultralytics
+      - ./results:/results 
 
 networks:
   vision_net:

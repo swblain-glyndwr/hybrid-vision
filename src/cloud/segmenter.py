@@ -29,7 +29,7 @@ class Gen2Seg(nn.Module):
     Very small 3-layer head that upsamples features back to 1/4-scale.
     Replace later with your trained Gen2Seg weights.
     """
-    def __init__(self, c_in: int = 256, stride: int = 8):
+    def __init__(self, c_in: int, stride: int = 8):
         super().__init__()
         self.conv1 = nn.Conv2d(c_in, 128, 3, padding=1)
         self.conv2 = nn.Conv2d(128, 64, 3, padding=1)
@@ -58,7 +58,7 @@ class CloudSegmenter:
     """
     def __init__(self) -> None:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.head   = Gen2Seg().to(self.device).eval()
+        self.head   = None      # build lazily per C-in
 
     # helpers
     @staticmethod
@@ -75,6 +75,10 @@ class CloudSegmenter:
 
         meta, comp = self._split_blob(blob)
         feat = codec.decode(comp, dtype=meta["dtype"], shape=meta["shape"])
+        C, H, W = feat.shape
+        # (re)build head if channel count changed
+        if self.head is None or self.head.conv1.in_channels != C:
+            self.head = Gen2Seg(c_in=C).to(self.device).eval()
         feat = feat.unsqueeze(0).to(self.device, non_blocking=True)   # (1,C,H,W)
 
         with torch.no_grad():
@@ -105,4 +109,5 @@ if __name__ == "__main__":
                           else str(type(v)))
                       for k, v in out["meta"].items()},
                      indent=2))
-    print("Masks tensor:", out["masks"].shape, " decode+infer ms:", out["dec_ms"]:.1f)
+    print(f"Masks tensor: {out['masks'].shape}  decode+infer ms: {out['dec_ms']:.1f}")
+
