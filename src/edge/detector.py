@@ -84,6 +84,22 @@ class EdgeDetector:
             raise FileNotFoundError(path)
         return cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
 
+    def extract_neck(self, img_path: Path) -> torch.Tensor:
+        """Return the tapped neck features for a single image."""
+        rgb = self._load_rgb(img_path)
+        _ = self.model.predict(
+            rgb,
+            imgsz=_INPUT_SIZE,
+            conf=_CONF_THRES,
+            iou=_IOU_THRES,
+            device=_DEVICE,
+            verbose=False,
+        )[0]
+        feat = self._hook.tensor
+        if feat is None:
+            raise RuntimeError("Feature hook did not fire.")
+        return feat.squeeze(0)
+
     # main API
 
     def run(self, img_path: Path) -> bytes:
@@ -110,9 +126,9 @@ class EdgeDetector:
         
         # feature capture
         feat = self._hook.tensor
-        feat = feat.squeeze(0)
         if feat is None:
             raise RuntimeError("Feature hook did not fire.")
+        feat = feat.squeeze(0)
         # feat shape: (C,H,W)  -- keep on CPU
 
         # compression
