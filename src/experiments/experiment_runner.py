@@ -8,7 +8,7 @@ pipeline, measures latency, bandwidth and (optionally) mAP.
 Usage (host or WSL shell)
 -------------------------
 python -m experiments.experiment_runner \
-        --dataset  datasets/coco/val2017 \
+        --dataset  datasets/coco \
         --frames   200 \
         --profile  5G \
         --out      results/run1.jsonl
@@ -35,12 +35,11 @@ from edge.detector import EdgeDetector
 from cloud.segmenter import CloudSegmenter
 from tc.apply_tc import apply_profile   # your helper
 
-DATA_ROOT = Path("/data/coco")          # volume mount inside both containers
-VAL_IMGS  = DATA_ROOT / "val2017"
-ANN_FILE  = DATA_ROOT / "annotations" / "instances_val2017.json"
-# Build mapping {coco_id -> 0-79 contiguous}
-coco_cat_ids = sorted(COCO(str(ANN_FILE)).getCatIds())
-COCO_CAT_ID_TO_IDX = {cid: i for i, cid in enumerate(coco_cat_ids)}
+# default dataset root used when --dataset isn't provided
+DEFAULT_DATA_ROOT = Path("/data/coco")
+
+# category-id mapping is populated once the dataset path is known
+COCO_CAT_ID_TO_IDX = {}
 
 
 # Helper: map YOLO xyxy numpy → torchmetric dicts
@@ -70,6 +69,15 @@ def coco_gt(coco: COCO, img_id: int):
 # Main runner
 
 def main(args):
+    DATA_ROOT = args.dataset
+    val_imgs  = DATA_ROOT / "val2017"
+    ann_file  = DATA_ROOT / "annotations" / "instances_val2017.json"
+
+    # Build mapping {coco_id -> 0-79 contiguous}
+    coco_cat_ids = sorted(COCO(str(ann_file)).getCatIds())
+    global COCO_CAT_ID_TO_IDX
+    COCO_CAT_ID_TO_IDX = {cid: i for i, cid in enumerate(coco_cat_ids)}
+
     # optional traffic-control
     if args.profile:
         apply_profile(args.profile)
@@ -79,14 +87,14 @@ def main(args):
     cloud = CloudSegmenter()
 
     # COCO helper & metric
-    coco   = COCO(str(ANN_FILE))
+    coco   = COCO(str(ann_file))
     metric = MeanAveragePrecision(
             iou_type="bbox",
             iou_thresholds=[x / 100 for x in range(50, 100, 5)],   # 0.50‥0.95
     )
     stats  = []                     # per-frame CSV rows
 
-    img_files = sorted(VAL_IMGS.glob("*.jpg"))[:args.frames]
+    img_files = sorted(val_imgs.glob("*.jpg"))[:args.frames]
     for img_path in tqdm(img_files, desc="frames"):
         t_all0 = time.perf_counter()
 
@@ -131,6 +139,8 @@ def main(args):
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
+    p.add_argument("--dataset", type=Path, default=DEFAULT_DATA_ROOT,
+                   help="path to COCO dataset root")
     p.add_argument("--frames", type=int, default=50,
                    help="number of COCO-val images (default 50)")
     p.add_argument("--profile", type=str, default=None,
