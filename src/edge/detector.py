@@ -110,9 +110,10 @@ class EdgeDetector:
         
         # feature capture
         feat = self._hook.tensor
-        feat = feat.squeeze(0)
         if feat is None:
+            # ensure hook captured feature tensor before squeezing
             raise RuntimeError("Feature hook did not fire.")
+        feat = feat.squeeze(0)
         # feat shape: (C,H,W)  -- keep on CPU
 
         # compression
