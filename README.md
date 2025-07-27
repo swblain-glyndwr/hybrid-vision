@@ -43,3 +43,16 @@ pip install -r requirements-dev.txt
 pytest
 
 Both the edge and cloud containers have their own requirements-*.txt files and Dockerfiles under docker/.
+
+Model Pruning & Quantization
+----------------------------
+
+You can prune and quantize the YOLO weights for edge deployment with the helper
+script under ``src/training``.  After installing the dev requirements, run:
+
+```
+python -m training.optimize_yolo yolov8n-seg.pt pruned_quantized.pt --prune 0.2
+```
+
+This loads the given weights, globally prunes a fraction of convolution weights
+and applies dynamic quantization before saving the optimized model.
