@@ -31,8 +31,6 @@ from torchmetrics.detection import MeanAveragePrecision
 from tqdm import tqdm
 from pycocotools.coco import COCO
 
-from edge.detector import EdgeDetector
-from cloud.segmenter import CloudSegmenter
 from tc.apply_tc import apply_profile   # your helper
 
 # default dataset root used when --dataset isn't provided
@@ -145,6 +143,15 @@ if __name__ == "__main__":
                    help="number of COCO-val images (default 50)")
     p.add_argument("--profile", type=str, default=None,
                    help="TC profile name as understood by tc/apply_tc.py")
+    p.add_argument("--codec", type=str, choices=["zlib", "afe"], default="zlib",
+                   help="codec backend to use: zlib or afe")
     p.add_argument("--csv", type=Path, default=None,
                    help="optional output CSV file")
-    main(p.parse_args())
+    args = p.parse_args()
+
+    from common import codec
+    codec.set_backend(args.codec)
+    from edge.detector import EdgeDetector
+    from cloud.segmenter import CloudSegmenter
+
+    main(args)
