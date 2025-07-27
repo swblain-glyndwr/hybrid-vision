@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from common.offload_policy import RLDecisionPolicy, QuickDecisionPolicy
@@ -20,3 +21,10 @@ def test_rl_decision_policy_update():
     policy.update(state, "edge", reward=1.0, next_metrics=next_state)
     action = policy.choose(state)
     assert action in {"edge", "cloud"}
+
+
+def test_queue_threshold_caps_penalty():
+    policy = QuickDecisionPolicy(latency_threshold=100, queue_threshold=5)
+    # Without capping, queue_depth=20 would push score above threshold.
+    action = policy.choose(infer_ms=80, enc_ms=5, queue_depth=20)
+    assert action == "edge"
