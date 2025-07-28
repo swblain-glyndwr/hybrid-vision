@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import zlib
 from pathlib import Path
-from typing import Tuple
+from typing import Tuple, Sequence
 
 import torch
 import torch.nn as nn
@@ -81,7 +81,7 @@ def _dtype_from_any(d: str | torch.dtype) -> torch.dtype:
     return getattr(torch, d)
 
 
-def _decode_zlib(blob: bytes, dtype: str | torch.dtype, shape: Tuple[int, int, int]) -> torch.Tensor:
+def _decode_zlib(blob: bytes, dtype: str | torch.dtype, shape: Sequence[int]) -> torch.Tensor:
     arr = zlib.decompress(blob)
     return torch.frombuffer(arr, dtype=_dtype_from_any(dtype)).view(*shape)
 
@@ -93,7 +93,7 @@ def _encode_afe(tensor: torch.Tensor) -> bytes:
     return zlib.compress(lat.numpy().tobytes(), level=3)
 
 
-def _decode_afe(blob: bytes, dtype: str | torch.dtype, shape: Tuple[int, int, int]) -> torch.Tensor:
+def _decode_afe(blob: bytes, dtype: str | torch.dtype, shape: Sequence[int]) -> torch.Tensor:
     model = _load_afe(shape[0])
     arr = zlib.decompress(blob)
     lat = torch.frombuffer(arr, dtype=torch.float16).view(*shape)
@@ -110,7 +110,7 @@ def encode(tensor: torch.Tensor) -> bytes:
     return _encode_zlib(tensor)
 
 
-def decode(blob: bytes, dtype: str | torch.dtype, shape: Tuple[int, int, int]) -> torch.Tensor:
+def decode(blob: bytes, dtype: str | torch.dtype, shape: Sequence[int]) -> torch.Tensor:
     """Decompress ``blob`` using the selected backend."""
 
     if _BACKEND == "afe":
