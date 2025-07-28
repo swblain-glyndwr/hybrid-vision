@@ -56,3 +56,25 @@ python -m training.optimize_yolo yolov8n-seg.pt pruned_quantized.pt --prune 0.2
 
 This loads the given weights, globally prunes a fraction of convolution weights
 and applies dynamic quantization before saving the optimized model.
+
+Quick CLI
+---------
+
+The ``hv.py`` script in the repository root exposes handy commands so you don't
+have to remember the full module paths. A few examples:
+
+```
+# Run the edge detector on one image
+python hv.py edge path/to/image.jpg
+
+# Run the complete edge → cloud pipeline
+python hv.py cloud path/to/image.jpg
+
+# Prune and quantize YOLO weights
+python hv.py optimize yolov8n-seg.pt pruned.pt --prune 0.3
+
+# Launch the docker containers
+python hv.py compose-up
+```
+
+Run ``python hv.py -h`` to see all available subcommands.
