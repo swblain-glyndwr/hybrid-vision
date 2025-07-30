@@ -35,13 +35,17 @@ The experiments run inside Docker containers via `docker-compose.yml`. The edge 
 
 ### Model Pruning & Quantization
 
-You can prune and quantize the YOLO weights for edge deployment with the helper script under `src/training`:
+You can prune and quantize the YOLO weights for edge deployment with the helper
+script under `src/training`. The tool supports **dynamic**, **static** and
+**quantization-aware training (QAT)** modes:
 
 ```bash
-python -m training.optimize_yolo yolov8n-seg.pt pruned_quantized.pt --prune 0.2
+python -m training.optimize_yolo yolov8n-seg.pt pruned_quantized.pt --prune 0.2 --quant static
 ```
 
-The script loads the given weights, globally prunes a fraction of convolution weights and applies dynamic quantization before saving the optimized model.
+By default dynamic quantization is used. Pass `--quant static` for post-training
+static quantization or `--quant qat` (optionally with `--steps`) to run a short
+QAT loop before converting the model.
 
 ### Quick CLI
 
@@ -54,8 +58,8 @@ python hv.py edge path/to/image.jpg
 # Run the complete edge → cloud pipeline
 python hv.py cloud path/to/image.jpg
 
-# Prune and quantize YOLO weights
-python hv.py optimize yolov8n-seg.pt pruned.pt --prune 0.3
+# Prune and quantize YOLO weights (static quantization example)
+python hv.py optimize yolov8n-seg.pt pruned.pt --prune 0.3 --quant static
 
 # Launch the docker containers
 python hv.py compose-up

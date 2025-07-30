@@ -46,9 +46,9 @@ def run_gen2seg(image: Path, model: str) -> None:
     print(f"Mask tensor: {mask.shape}")
 
 
-def optimize(weights: Path, output: Path, prune: float) -> None:
+def optimize(weights: Path, output: Path, prune: float, quant: str, steps: int) -> None:
     from src.training.optimize_yolo import main as opt_main
-    opt_main(weights, output, prune_pct=prune)
+    opt_main(weights, output, prune_pct=prune, quantization=quant, steps=steps)
 
 
 def run_experiment(args: list[str]) -> None:
@@ -85,6 +85,8 @@ p_opt = sub.add_parser("optimize", help="prune and quantize YOLO weights")
 p_opt.add_argument("weights", type=Path)
 p_opt.add_argument("output", type=Path)
 p_opt.add_argument("--prune", type=float, default=0.2)
+p_opt.add_argument("--quant", choices=["dynamic", "static", "qat"], default="dynamic")
+p_opt.add_argument("--steps", type=int, default=100)
 
 p_exp = sub.add_parser("experiment", help="run experiment runner")
 p_exp.add_argument("args", nargs=argparse.REMAINDER)
@@ -101,7 +103,7 @@ elif args.cmd == "cloud":
 elif args.cmd == "gen2seg":
     run_gen2seg(args.image, args.model)
 elif args.cmd == "optimize":
-    optimize(args.weights, args.output, args.prune)
+    optimize(args.weights, args.output, args.prune, args.quant, args.steps)
 elif args.cmd == "experiment":
     run_experiment(args.args)
 elif args.cmd == "compose-up":
