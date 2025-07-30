@@ -6,7 +6,7 @@ def main(dset_path, epochs=20, lr=1e-3, batch=128, mu=1e-3):
     feats = torch.load(dset_path)                # pre-extracted neck tensors
     loader = DataLoader(TensorDataset(feats), batch_size=batch, shuffle=True)
     model  = AdaptiveFlowEncoder(feats.shape[1])
-    opt    = torch.optim.Adam(model.parameters(), lr=1e-4)
+    opt    = torch.optim.Adam(model.parameters(), lr=lr)
 
     for epoch in range(epochs):
         total, rec = 0., 0.
