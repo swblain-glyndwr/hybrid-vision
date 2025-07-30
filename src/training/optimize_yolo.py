@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, cast
 
 import torch
 from torch.nn.utils import prune
@@ -95,7 +95,7 @@ def main(weights: Path, output: Path, *, prune_pct: float = 0.2,
          quantization: str = "dynamic", steps: int = 100) -> None:
     """Load YOLO weights, prune, quantize and save."""
     yolo = YOLO(str(weights))
-    core = yolo.model  # nn.Module
+    core = cast(torch.nn.Module, yolo.model)
     apply_global_pruning(core, amount=prune_pct)
 
     if quantization == "dynamic":
