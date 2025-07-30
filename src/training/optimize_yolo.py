@@ -48,7 +48,11 @@ def apply_static_quantization(model: torch.nn.Module) -> torch.nn.Module:
             model.fuse()
         except Exception:
             pass
-    model.qconfig = torch.quantization.get_default_qconfig("fbgemm")
+    # "qconfig" is an attribute commonly injected into nn.Module instances at
+    # runtime, but PyTorch's type hints for ``Module.__setattr__`` only allow
+    # ``Tensor`` or ``Module``.  Using ``setattr`` avoids a Pylance type error
+    # while keeping the behaviour identical.
+    setattr(model, "qconfig", torch.quantization.get_default_qconfig("fbgemm"))
     torch.quantization.prepare(model, inplace=True)
     example = torch.randn(1, 3, 640, 640)
     with torch.no_grad():
@@ -66,7 +70,9 @@ def apply_qat_quantization(model: torch.nn.Module, steps: int = 100) -> torch.nn
             model.fuse()
         except Exception:
             pass
-    model.qconfig = torch.quantization.get_default_qat_qconfig("fbgemm")
+    # ``qconfig`` assignment via ``setattr`` sidesteps type checking issues in
+    # static analysers such as Pylance.
+    setattr(model, "qconfig", torch.quantization.get_default_qat_qconfig("fbgemm"))
     torch.quantization.prepare_qat(model, inplace=True)
     opt = torch.optim.SGD(model.parameters(), lr=1e-4)
     example = torch.randn(1, 3, 640, 640)
