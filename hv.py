@@ -39,6 +39,13 @@ def run_cloud(image: Path) -> None:
     print(f"Masks tensor: {out['masks'].shape}  decode+infer ms: {out['dec_ms']:.1f}")
 
 
+def run_gen2seg(image: Path, model: str) -> None:
+    """Run the public Gen2Seg model on ``image`` and print the mask shape."""
+    from src.cloud.gen2seg_runner import run
+    mask = run(image, model)
+    print(f"Mask tensor: {mask.shape}")
+
+
 def optimize(weights: Path, output: Path, prune: float) -> None:
     from src.training.optimize_yolo import main as opt_main
     opt_main(weights, output, prune_pct=prune)
@@ -70,6 +77,10 @@ p_edge.add_argument("image", type=Path)
 p_cloud = sub.add_parser("cloud", help="run edge+cloud on an image")
 p_cloud.add_argument("image", type=Path)
 
+p_gen = sub.add_parser("gen2seg", help="run Gen2Seg SD on an image")
+p_gen.add_argument("image", type=Path)
+p_gen.add_argument("--model", type=str, default="reachomk/gen2seg-sd")
+
 p_opt = sub.add_parser("optimize", help="prune and quantize YOLO weights")
 p_opt.add_argument("weights", type=Path)
 p_opt.add_argument("output", type=Path)
@@ -87,6 +98,8 @@ if args.cmd == "edge":
     run_edge(args.image)
 elif args.cmd == "cloud":
     run_cloud(args.image)
+elif args.cmd == "gen2seg":
+    run_gen2seg(args.image, args.model)
 elif args.cmd == "optimize":
     optimize(args.weights, args.output, args.prune)
 elif args.cmd == "experiment":
