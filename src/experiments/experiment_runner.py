@@ -119,11 +119,12 @@ def main(args):
 
     # results
     mp = metric.compute()
-    print("\n===== summary =====")
-    print(f"mAP50-95 (bbox): {mp['map']:.3f}")
-    print(f" └─ AP50 only :  {mp['map_50']:.3f}")
-    print(f"mean total latency: {sum(r['total_ms'] for r in stats)/len(stats):.1f} ms")
-    print(f"mean blob size:     {sum(r['blob_kB']  for r in stats)/len(stats):.1f} kB")
+    summary = {
+        "mAP50-95": float(mp["map"]),
+        "mAP50": float(mp["map_50"]),
+        "mean_total_ms": sum(r["total_ms"] for r in stats) / len(stats),
+        "mean_blob_kB": sum(r["blob_kB"] for r in stats) / len(stats),
+    }
 
     # CSV dump
     if args.csv:
@@ -131,6 +132,12 @@ def main(args):
             w = csv.DictWriter(f, fieldnames=stats[0].keys())
             w.writeheader(); w.writerows(stats)
         print(f"saved per-frame stats → {args.csv}")
+
+        summary_path = args.csv.parent / f"{args.csv.stem}_summary{args.csv.suffix}"
+        with open(summary_path, "w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=summary.keys())
+            w.writeheader(); w.writerow(summary)
+        print(f"saved summary stats → {summary_path}")
 
 
 # CLI
